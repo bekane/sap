@@ -1,0 +1,151 @@
+---
+- name: Provision libbpf-bootstrap + xdp-tutorial
+  hosts: all
+  become: yes
+  gather_facts: yes
+
+  vars:
+    provision_user: "{{ ansible_user | default(ansible_ssh_user) | default('vagrant') }}"
+    provision_home: "{{ (provision_user == 'root') | ternary('/root', '/home/' ~ provision_user) }}"
+    src_root: "{{ provision_home }}/src"
+    libbpf_bootstrap_repo: "https://github.com/libbpf/libbpf-bootstrap"
+    libbpf_bootstrap_dest: "{{ src_root }}/libbpf-bootstrap"
+    xdp_tutorial_repo: "https://github.com/xdp-project/xdp-tutorial.git"
+    xdp_tutorial_dest: "{{ src_root }}/xdp-tutorial"
+
+  tasks:
+    - name: Install deps (Debian/Ubuntu)
+      when: ansible_facts.os_family == "Debian"
+      ansible.builtin.apt:
+        update_cache: yes
+        cache_valid_time: 3600
+        name:
+          - binutils-dev
+          - clang
+          - curl
+          - gcc
+          - git
+          - libc6-dev-i386
+          - libcap-dev
+          - libelf-dev
+          - libelf1
+          - libpcap-dev
+          - llvm
+          - m4
+          - make
+          - pkg-config
+          - zlib1g-dev
+          - "linux-headers-{{ ansible_kernel }}"
+        state: present
+
+    - name: Install deps (RHEL/Fedora)
+      when: ansible_facts.os_family == "RedHat"
+      ansible.builtin.dnf:
+        name:
+          - clang
+          - curl
+          - elfutils-libelf
+          - elfutils-libelf-devel
+          - gcc
+          - git
+          - glibc-devel.i686
+          - "kernel-devel-{{ ansible_kernel }}"
+          - libcap-devel
+          - libpcap-devel
+          - llvm
+          - m4
+          - make
+          - pkg-config
+          - zlib-devel
+        state: present
+
+    - name: Ensure source root exists
+      ansible.builtin.file:
+        path: "{{ src_root }}"
+        state: directory
+        owner: "{{ provision_user }}"
+        group: "{{ provision_user }}"
+        mode: "0755"
+
+    - name: Clone/update libbpf-bootstrap
+      become: false
+      ansible.builtin.git:
+        repo: "{{ libbpf_bootstrap_repo }}"
+        dest: "{{ libbpf_bootstrap_dest }}"
+        recursive: yes
+        update: yes
+      register: libbpf_bootstrap_git
+
+    - name: Clone/update xdp-tutorial
+      become: false
+      ansible.builtin.git:
+        repo: "{{ xdp_tutorial_repo }}"
+        dest: "{{ xdp_tutorial_dest }}"
+        recursive: yes
+        update: yes
+      register: xdp_tutorial_git
+
+    - name: Check if libbpf is installed
+      ansible.builtin.stat:
+        path: /usr/local/include/bpf/libbpf.h
+      register: libbpf_installed
+
+    - name: Check if bpftool is installed
+      ansible.builtin.stat:
+        path: /usr/local/sbin/bpftool
+      register: bpftool_installed
+
+    - name: Check if bpftool is installed (alternate path)
+      ansible.builtin.stat:
+        path: /usr/local/bin/bpftool
+      register: bpftool_installed_alt
+
+    - name: Set bpftool installed fact
+      ansible.builtin.set_fact:
+        bpftool_is_installed: "{{ bpftool_installed.stat.exists or bpftool_installed_alt.stat.exists }}"
+      changed_when: false
+
+    - name: Build libbpf (if needed)
+      become: false
+      when: libbpf_bootstrap_git.changed or not libbpf_installed.stat.exists
+      ansible.builtin.command: make -C libbpf/src
+      args:
+        chdir: "{{ libbpf_bootstrap_dest }}"
+
+    - name: Install libbpf (if needed)
+      when: libbpf_bootstrap_git.changed or not libbpf_installed.stat.exists
+      ansible.builtin.command: make -C libbpf/src install
+      args:
+        chdir: "{{ libbpf_bootstrap_dest }}"
+
+    - name: Build bpftool (if needed)
+      become: false
+      when: libbpf_bootstrap_git.changed or not bpftool_is_installed
+      ansible.builtin.command: make -C bpftool/src
+      args:
+        chdir: "{{ libbpf_bootstrap_dest }}"
+
+    - name: Install bpftool (if needed)
+      when: libbpf_bootstrap_git.changed or not bpftool_is_installed
+      ansible.builtin.command: make -C bpftool/src install
+      args:
+        chdir: "{{ libbpf_bootstrap_dest }}"
+
+    - name: Check if xdp-tutorial is configured
+      ansible.builtin.stat:
+        path: "{{ xdp_tutorial_dest }}/Makefile"
+      register: xdp_tutorial_configured
+
+    - name: Configure xdp-tutorial (if needed)
+      become: false
+      when: xdp_tutorial_git.changed or not xdp_tutorial_configured.stat.exists
+      ansible.builtin.command: ./configure
+      args:
+        chdir: "{{ xdp_tutorial_dest }}"
+
+    - name: Build xdp-tutorial (if needed)
+      become: false
+      when: xdp_tutorial_git.changed or not xdp_tutorial_configured.stat.exists
+      ansible.builtin.command: make
+      args:
+        chdir: "{{ xdp_tutorial_dest }}"
