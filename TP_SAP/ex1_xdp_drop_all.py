@@ -27,12 +27,12 @@ int xdp_drop_all(struct xdp_md *ctx) {
     if (count) {
         // À COMPLÉTER: Incrémenter le compteur de manière atomique
         // Indice: utilisez __sync_fetch_and_add()
-        __sync_fetch_and_add(count, 1);
+        // VOTRE CODE ICI
     }
     
     // À COMPLÉTER: Retourner l'action XDP appropriée pour BLOQUER le paquet
     // Indice: Quelle constante XDP permet de jeter un paquet ?
-    return XDP_DROP;
+    // VOTRE CODE ICI
 }
 """
 
@@ -45,24 +45,24 @@ def main():
     
     interface = sys.argv[1]
     
-    print(f"  ATTENTION : Je vais bloquer TOUT le trafic sur {interface}")
+    print(f" ATTENTION : Je vais bloquer TOUT le trafic sur {interface}")
     print("   Vous perdrez la connexion réseau !")
     print("   Appuyez sur Ctrl+C pour restaurer.")
-    # input("   Appuyez sur Entrée pour continuer...")
+    input("   Appuyez sur Entrée pour continuer...")
     
     # Charger le programme
     b = BPF(text=bpf_text)
     
     # À COMPLÉTER: Charger la fonction XDP
     # Indice: utilisez b.load_func() avec le bon type
-    fn = b.load_func("xdp_drop_all", BPF.XDP)
+    # fn = VOTRE CODE ICI
     
     try:
         # À COMPLÉTER: Attacher le programme XDP à l'interface
         # Indice: utilisez b.attach_xdp()
-        b.attach_xdp(interface, fn, 0)
+        # VOTRE CODE ICI
         
-        print(f"\n✓ XDP DROP actif sur {interface}")
+        print(f"\n XDP DROP actif sur {interface}")
         print("  Testez depuis un autre terminal : ping 8.8.8.8")
         print("\nAppuyez sur Ctrl+C pour arrêter.\n")
         
@@ -73,13 +73,13 @@ def main():
             count = drop_count[0].value
             print(f"Paquets bloqués : {count}")
             
-    except:
+    except KeyboardInterrupt:
         print("\n\nRestoration du réseau...")
     finally:
         # À COMPLÉTER: Détacher XDP proprement
         # Indice: utilisez b.remove_xdp()
-        b.remove_xdp(interface, 0)
-        print("✓ XDP détaché - réseau restauré")
+        # VOTRE CODE ICI
+        print(" XDP détaché - réseau restauré")
 
 if __name__ == "__main__":
     main()

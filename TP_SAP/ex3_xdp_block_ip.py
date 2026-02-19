@@ -24,29 +24,16 @@ int xdp_block_ip(struct xdp_md *ctx) {
     
     // À COMPLÉTER: Parser Ethernet et IP (réutilisez la logique de l'ex2)
     // struct ethhdr *eth = ...
-    struct ethhdr *eth = data;
-    if ((void *)(eth + 1) > data_end)
-        return XDP_PASS;
     // Vérifications...
     // struct iphdr *ip = ...
-    if (eth->h_proto != htons(ETH_P_IP))
-        return XDP_PASS;
-    
-    struct iphdr *ip = data + sizeof(struct ethhdr);
-    if ((void *)(ip + 1) > data_end)
-        return XDP_PASS;
     
     // À COMPLÉTER: Vérifier si l'IP source correspond à l'IP bloquée
     // Indice: ip->saddr contient l'IP source (en network byte order)
     // Comparez avec BLOCKED_IP_INT
-    if (ip->saddr == BLOCKED_IP_INT) {
-        // Bloquer et compter
-        u32 key = 0;
-        u64 *count = stats.lookup(&key);
-        if (count)
-            __sync_fetch_and_add(count, 1);
-        return XDP_DROP;
-    }
+    // if (VOTRE CODE ICI) {
+    //     // Bloquer et compter
+    //     return XDP_DROP;
+    // }
     
     // Sinon laisser passer
     u32 key = 1;
@@ -70,12 +57,11 @@ def ip_to_int(ip_str):
     Pourquoi cette conversion est nécessaire ?
     """
     # VOTRE CODE ICI
-    packed = socket.inet_aton(ip_str)
-    return struct.unpack("!I", packed)[0]
+    pass
 
 def int_to_ip(ip_int):
     """Convertir int vers IP string"""
-    packed = struct.pack("!I", ip_int)
+    packed = struct.pack("I", ip_int)
     return socket.inet_ntoa(packed)
 
 def main():
