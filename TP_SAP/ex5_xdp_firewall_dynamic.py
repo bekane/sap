@@ -13,7 +13,6 @@ import struct
 import time
 
 bpf_text = """
-#define KBUILD_MODNAME "xdp_firewall"
 #include <uapi/linux/bpf.h>
 #include <linux/if_ether.h>
 #include <linux/ip.h>
@@ -24,8 +23,6 @@ bpf_text = """
 // 1. blocked_ips   : clé=u32 (IP),   valeur=u8, taille=1024
 // 2. blocked_ports : clé=u16 (port), valeur=u8, taille=256
 // BPF_HASH(blocked_ips,   ...VOTRE CODE ICI...);
-BPF_HASH(blocked_ips, u32, u8, 1024);
-BPF_HASH(blocked_ports, u16, u8, 256);
 // BPF_HASH(blocked_ports, ...VOTRE CODE ICI...);
 
 // Statistiques : [0]=dropped_ip, [1]=dropped_port, [2]=passed
@@ -50,13 +47,7 @@ int xdp_firewall(struct xdp_md *ctx) {
     // À COMPLÉTER: Vérifier si l'IP source est dans blocked_ips
     // Indice: blocked_ips.lookup(&ip->saddr) retourne NULL si absent
     // Si trouvé et valeur == 1 → incrémenter stats[0] et XDP_DROP
-    u8 *blocked = blocked_ips.lookup(&ip->saddr);
-    if (blocked && *blocked == 1) {
-        u32 key = 0;
-        u64 *count = stats.lookup(&key);
-        if (count) __sync_fetch_and_add(count, 1);
-        return XDP_DROP;
-    }
+    // VOTRE CODE ICI
 
     // Parser TCP/UDP pour extraire le port destination
     u16 dport = 0;
@@ -76,15 +67,7 @@ int xdp_firewall(struct xdp_md *ctx) {
     // Même logique que pour les IPs, mais avec dport
     // Attention: ne vérifier que si dport > 0
     // Si trouvé et valeur == 1 → incrémenter stats[1] et XDP_DROP
-    if (dport > 0) {
-        u8 *blocked_port = blocked_ports.lookup(&dport);
-        if (blocked_port && *blocked_port == 1) {
-            u32 key = 1;
-            u64 *count = stats.lookup(&key);
-            if (count) __sync_fetch_and_add(count, 1);
-            return XDP_DROP;
-        }
-    }
+    // VOTRE CODE ICI
 
     // Laisser passer
     u32 key = 2;
@@ -100,8 +83,7 @@ def ip_to_int(ip_str):
     À COMPLÉTER: réutilisez votre code de l'exercice 3
     """
     # VOTRE CODE ICI
-    packed = socket.inet_aton(ip_str)
-    return struct.unpack("!I", packed)[0]
+    pass
 
 def load_config(config_file):
     """
@@ -130,15 +112,6 @@ def load_config(config_file):
     #     for line in f:
     #         ...
     # VOTRE CODE ICI
-    with open(config_file) as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith('#'):
-                continue
-            if line.startswith('IP_LIST='):
-                config['ips'] = [ip.strip() for ip in line.split('=', 1)[1].split(',')]
-            elif line.startswith('PORT_LIST='):
-                config['ports'] = [port.strip() for port in line.split('=', 1)[1].split(',')]
 
     return config
 
@@ -159,11 +132,7 @@ def load_rules(b, config):
     print("\n IPs bloquées :")
     for ip in config['ips']:
         try:
-            ip_int = ip_to_int(ip)
-            blocked_ips = b["blocked_ips"]
-            key = blocked_ips.Key(ip_int)
-            value = blocked_ips.Leaf(1)
-            blocked_ips[key] = value
+            # VOTRE CODE ICI
             print(f"    {ip}")
         except Exception as e:
             print(f"    {ip} — {e}")
@@ -173,10 +142,6 @@ def load_rules(b, config):
         try:
             port = int(port_str)
             # VOTRE CODE ICI
-            blocked_ports = b["blocked_ports"]
-            key = blocked_ports.Key(port)
-            value = blocked_ports.Leaf(1)
-            blocked_ports[key] = value
             print(f"    {port}")
         except Exception as e:
             print(f"    {port_str} — {e}")
@@ -189,7 +154,7 @@ def show_stats(b):
     passed       = b["stats"][2].value
     total        = dropped_ip + dropped_port + passed
     rate = ((dropped_ip + dropped_port) / total * 100) if total else 0
-    print(f"\r Total: {total:8} | "
+    print(f"\\r Total: {total:8} | "
           f"Bloqués IP: {dropped_ip:6} | "
           f"Bloqués Port: {dropped_port:6} | "
           f"Passés: {passed:6} | "
@@ -206,7 +171,7 @@ def main():
 
     print("  XDP Firewall — chargement par fichier de configuration")
     print(f"   Interface : {interface}")
-    print(f"   Config    : {config_file}\n")
+    print(f"   Config    : {config_file}\\n")
 
     # Charger et parser la config
     config = load_config(config_file)
@@ -225,19 +190,19 @@ def main():
     try:
         b.attach_xdp(interface, fn, 0)
         print(f" Firewall attaché à {interface}")
-        print("  Ctrl+C pour arrêter\n")
+        print("  Ctrl+C pour arrêter\\n")
 
         while True:
             show_stats(b)
             time.sleep(1)
 
     except KeyboardInterrupt:
-        print("\n")
+        print("\\n")
     finally:
         b.remove_xdp(interface, 0)
         print(" Firewall détaché")
         # Afficher résumé final
-        print(f"\n Résumé :")
+        print(f"\\n Résumé :")
         print(f"   IPs bloquées  : {config['ips']}")
         print(f"   Ports bloqués : {config['ports']}")
         show_stats(b)
