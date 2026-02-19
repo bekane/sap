@@ -11,7 +11,6 @@ bpf_text = """
 #include <linux/if_ether.h>
 #include <linux/ip.h>
 #include <linux/icmp.h>
-#include <linux/in.h>
 
 // Compteurs: [0]=dropped, [1]=passed
 BPF_ARRAY(stats, u64, 2);
@@ -22,48 +21,36 @@ int xdp_block_icmp(struct xdp_md *ctx) {
     
     // À COMPLÉTER: Parser le header Ethernet
     // 1. Créer un pointeur vers struct ethhdr
-    struct ethhdr *eth = data;
     // 2. Vérifier que le pointeur + taille ne dépasse pas data_end
-    if ((void *)(eth + 1) > data_end)
-        return XDP_PASS;
-
+    // 3. Si dépassement, retourner XDP_PASS
+    // struct ethhdr *eth = VOTRE CODE ICI
+    // if (VOTRE VÉRIFICATION ICI)
+    //     return XDP_PASS;
     
     // À COMPLÉTER: Vérifier si c'est IPv4
     // Indice: eth->h_proto doit être égal à htons(ETH_P_IP)
     // Pourquoi htons() ? (réfléchissez au byte order)
-    if (eth->h_proto != htons(ETH_P_IP))
-        return XDP_PASS;
+    // if (VOTRE CODE ICI)
+    //     return XDP_PASS;
     
     // À COMPLÉTER: Parser le header IP
     // 1. Calculer la position : data + taille du header Ethernet
-    struct iphdr *ip = data + sizeof(struct ethhdr);
-    
     // 2. Vérifier les limites
-    if ((void *)(ip + 1) > data_end)
-        return XDP_PASS;
+    // struct iphdr *ip = VOTRE CODE ICI
+    // if (VOTRE VÉRIFICATION ICI)
+    //     return XDP_PASS;
     
     // À COMPLÉTER: Vérifier si c'est ICMP et bloquer
     // Indice: ip->protocol contient le numéro de protocole
     // IPPROTO_ICMP est la constante pour ICMP
-    
-    if (ip->protocol == IPPROTO_ICMP) {
-        // Incrémenter compteur dropped (stats[0])
-        u32 key = 0;
-        u64 *count = stats.lookup(&key);
-        if (count) {
-            __sync_fetch_and_add(count, 1);
-        }
-        return XDP_DROP;
-    }
+    // if (VOTRE CODE ICI) {
+    //     // Incrémenter compteur dropped (stats[0])
+    //     return XDP_DROP;
+    // }
     
     // À COMPLÉTER: Si ce n'est pas ICMP, laisser passer
     // Incrémenter compteur passed (stats[1])
-    u32 key = 1;
-    u64 *count = stats.lookup(&key);
-    if (count) {
-        __sync_fetch_and_add(count, 1);
-    }
-    return XDP_PASS;
+    // return VOTRE CODE ICI
 }
 """
 
@@ -78,7 +65,7 @@ def main():
     
     try:
         b.attach_xdp(interface, fn, 0)
-        print(f"✓ Filtre ICMP actif sur {interface}")
+        print(f" Filtre ICMP actif sur {interface}")
         print("  Les pings seront bloqués")
         print("  Le reste du trafic passe normalement")
         print("\nTestez avec : ping 8.8.8.8 (devrait échouer)")
@@ -104,7 +91,7 @@ def main():
         print("\n")
     finally:
         b.remove_xdp(interface, 0)
-        print("✓ Filtre désactivé")
+        print(" Filtre désactivé")
 
 if __name__ == "__main__":
     main()
